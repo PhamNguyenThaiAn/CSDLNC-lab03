@@ -1,7 +1,5 @@
 # LAB 03 – Chỉ mục trong MongoDB
 
-Phần Người A: khởi tạo dữ liệu và đo hiệu năng truy vấn đọc bằng JavaScript chạy trong **mongosh**. MongoDB Community chạy trong Docker; máy cá nhân không cần cài MongoDB, mongosh hoặc Node.js. Có thể thực hiện toàn bộ trong terminal GitHub Codespaces trên trình duyệt.
-
 ## Cấu trúc
 
 ```text
