@@ -1,0 +1,11 @@
+# Kết quả thực nghiệm được tạo lại trên máy người chạy.
+ketqua/*
+!ketqua/.gitkeep
+.env
+.env.*
+!.env.example
+node_modules/
+*.log
+.DS_Store
+Thumbs.db
+.vscode/
