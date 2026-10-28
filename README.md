@@ -1,5 +1,19 @@
 # LAB 03 – Chỉ mục trong MongoDB
 
+<<<<<<< Updated upstream
+=======
+Phần Người B đã có trong `scripts/03_unique_sparse_tests.js` và
+`scripts/04_write_cost_benchmarks.js`. Xem [HuongDan.txt](HuongDan.txt) để chạy
+01 → 04, lưu thông tin CPU/RAM/phiên bản, push minh chứng và đóng gói ZIP.
+[CauTraLoi_4_5.md](CauTraLoi_4_5.md) là nội dung đề xuất ghép vào báo cáo, cần
+điền số đo thật của nhóm. Hai script tự tạo lại các collection thử nghiệm riêng.
+Kiểm tra luồng phần B bằng Node.js: `node tests/verify_part_b.js`.
+Đây là kiểm tra giả lập, gồm cả hoàn nguyên khi ghi lỗi; cần chạy mongosh trên
+MongoDB để có minh chứng và số đo thật.
+
+Phần Người A: khởi tạo dữ liệu và đo hiệu năng truy vấn đọc bằng JavaScript chạy trong **mongosh**. MongoDB Community chạy trong Docker; máy cá nhân không cần cài MongoDB, mongosh hoặc Node.js. Có thể thực hiện toàn bộ trong terminal GitHub Codespaces trên trình duyệt.
+
+>>>>>>> Stashed changes
 ## Cấu trúc
 
 ```text
