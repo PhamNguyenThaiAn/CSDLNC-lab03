@@ -9,6 +9,11 @@ async function main() {
   const outputDirectory = path.resolve(process.cwd(), "ketqua");
   fs.mkdirSync(outputDirectory, { recursive: true });
   const summary = [];
+  // Kết quả gốc khi collection chỉ có index _id_.
+  const baselineResults = new Map();
+
+  // Minh chứng kiểm tra nội dung của từng bài đo.
+  const contentChecks = [];
   const repetitions = 5;
   const c3 = { "diaChi.thanhPho": 1, "diaChi.quan": 1, hocBong: -1 };
   const filterQ1 = { email: "hv000001@example.test" };
@@ -32,6 +37,105 @@ async function main() {
     fs.writeFileSync(path.join(outputDirectory, filename), EJSON.stringify(value, null, 2, { relaxed: false }) + "\n", "utf8");
   }
 
+  // Sắp xếp tên trường để hai object có cùng dữ liệu nhưng khác
+// thứ tự các trường vẫn được xem là giống nhau.
+// Thứ tự phần tử bên trong một trường dạng mảng vẫn được giữ nguyên.
+function canonicalize(value) {
+  if (Array.isArray(value)) {
+    return value.map(canonicalize);
+  }
+
+  if (value !== null && typeof value === "object") {
+    const result = {};
+
+    Object.keys(value)
+      .sort()
+      .forEach(function (key) {
+        result[key] = canonicalize(value[key]);
+      });
+
+    return result;
+  }
+
+  return value;
+}
+
+// Chuẩn hóa toàn bộ tập kết quả.
+// Không phụ thuộc thứ tự các document, nhưng vẫn giữ số lần xuất hiện.
+function normalizeResults(documents) {
+  return documents
+    .map(function (document) {
+      const extendedJson = EJSON.stringify(
+        document,
+        null,
+        0,
+        { relaxed: false }
+      );
+
+      const plainObject = JSON.parse(extendedJson);
+
+      return JSON.stringify(canonicalize(plainObject));
+    })
+    .sort();
+}
+
+async function verifyQueryResults(testName, queryFn) {
+  requireCondition(
+    baselineResults.has(queryFn),
+    "Chưa có kết quả cơ sở cho " + testName
+  );
+
+  const expected = baselineResults.get(queryFn);
+  const documents = await queryFn().toArray();
+  const actual = normalizeResults(documents);
+
+  const sameCount = actual.length === expected.length;
+  const sameContent =
+    JSON.stringify(actual) === JSON.stringify(expected);
+
+  // Q2, Q4 và Q4_hoTen phải trả học bổng giảm dần.
+  // Các document cùng mức học bổng được phép đổi vị trí.
+  const needsScholarshipSort =
+    queryFn === Q2 ||
+    queryFn === Q4 ||
+    queryFn === Q4_hoTen;
+
+  let sortValid = true;
+
+  if (needsScholarshipSort) {
+    for (let index = 1; index < documents.length; index += 1) {
+      if (
+        Number(documents[index - 1].hocBong) <
+        Number(documents[index].hocBong)
+      ) {
+        sortValid = false;
+        break;
+      }
+    }
+  }
+
+  const checkResult = {
+    testName: testName,
+    expectedCount: expected.length,
+    actualCount: actual.length,
+    sameCount: sameCount,
+    sameContent: sameContent,
+    sortChecked: needsScholarshipSort,
+    sortValid: sortValid,
+    passed: sameCount && sameContent && sortValid
+  };
+
+  contentChecks.push(checkResult);
+
+  // Lưu cả trường hợp kiểm tra thất bại để có minh chứng.
+  writeJson("read_content_checks.json", contentChecks);
+  printjson(checkResult);
+
+  requireCondition(
+    checkResult.passed,
+    "Kết quả hoặc thứ tự sắp xếp không đúng: " + testName
+  );
+}
   // Duyệt riêng winningPlan, không lấy nhầm rejectedPlans hay executionStages.
   // Với SBE, cây logic nằm trong winningPlan.queryPlan.
   function extractPlan(winningPlan) {
@@ -111,6 +215,10 @@ async function main() {
     summary.push(row);
     saveSummary();
     printjson(row);
+
+    // Truy vấn và so sánh nội dung nằm ngoài phần đo explain.
+    await verifyQueryResults(testName, queryFn);
+
     return row;
   }
 
@@ -136,6 +244,19 @@ async function main() {
   requireCondition(baselineCounts.Q1 === 1 && baselineCounts.Q2 >= 100 && baselineCounts.Q3 >= 1000, "Dữ liệu không đạt điều kiện thí nghiệm.");
   writeJson("read_metadata.json", { database: database.getName(), collection: "hocvien", warmups: 1, repetitions: repetitions, baselineCounts: baselineCounts, startedAt: new Date().toISOString() });
 
+  // Tại thời điểm này collection chỉ có _id_.
+// Lấy kết quả gốc cho từng dạng truy vấn.
+for (const queryFn of [Q1, Q2, Q3, Q4, Q4_hoTen]) {
+  const documents = await queryFn().toArray();
+
+  baselineResults.set(
+    queryFn,
+    normalizeResults(documents)
+  );
+}
+
+// Khởi tạo file minh chứng cho lần chạy hiện tại.
+writeJson("read_content_checks.json", contentChecks);
   // Bài 2.2.1: tạo, kiểm tra, xóa theo tên và tạo lại index email.
   await runBenchmark("2_2_1_Q1_C0", Q1);
   await collection.createIndex({ email: 1 }, { name: "idx_email" });
